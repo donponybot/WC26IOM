@@ -22,7 +22,7 @@ export function Rules({ lang = 'en', playerCount = 0 }) {
       <div className="rules-section">
         <h3>{t(lang,'championRuleTitle')}</h3>
         <p>{t(lang,'championRuleDesc')}</p>
-        <div className="pts-rule"><span>5 pts</span> {t(lang,'pts5')}</div>
+        <div className="pts-rule"><span>15 pts</span> {t(lang,'pts5')}</div>
       </div>
       <div className="rules-section">
         <h3>{t(lang,'groupRuleTitle')}</h3>
@@ -42,7 +42,6 @@ export function Rules({ lang = 'en', playerCount = 0 }) {
           <li>{t(lang,'deadlineRule1')}</li>
           <li>{t(lang,'deadlineRule2')}</li>
           <li>{t(lang,'deadlineRule3')}</li>
-          <li><strong>{t(lang,'deadlineRule4')}</strong></li>
         </ul>
       </div>
       <div className="rules-section gold">

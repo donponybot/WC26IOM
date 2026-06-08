@@ -81,7 +81,7 @@ export default function Leaderboard({ leaderboard, results, champion, lang = 'en
       <div className="points-key">
         <h4>{t(lang, 'pointsKey')}</h4>
         <div className="key-grid">
-          <div className="key-item"><span className="key-pts">5</span> {t(lang, 'pts5')}</div>
+          <div className="key-item"><span className="key-pts">15</span> {t(lang, 'pts5')}</div>
           <div className="key-item"><span className="key-pts">2</span> {t(lang, 'pts2group')}</div>
           <div className="key-item"><span className="key-pts">2</span> {t(lang, 'pts2ko')}</div>
           <div className="key-item"><span className="key-pts">3</span> {t(lang, 'pts3ko')}</div>

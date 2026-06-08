@@ -103,12 +103,11 @@ export const TRANSLATIONS = {
     knockoutRuleDesc: 'Pick the winner AND optionally predict the exact final score.',
     knockoutRuleNote: 'Both bonuses can be earned on the same match (5 pts max per knockout game).',
     deadlineTitle: '⏰ Deadline Rules',
-    deadlineRule1: 'All predictions must be submitted before the morning of each match day.',
+    deadlineRule1: 'All predictions must be submitted before the start of each match.',
     deadlineRule2: 'The app automatically locks each match cell at its individual kickoff time.',
-    deadlineRule3: 'If you forget to send your prediction, you won\'t receive points for that match.',
-    deadlineRule4: 'No exceptions.',
+    deadlineRule3: 'Champions will be blocked for editing as soon as the tournament starts... make sure you don\'t lose these valuable points.',
     prizeTitle: '🏅 Prize',
-    prizeDesc: 'Winner takes all! The player with the most points at the end of the tournament wins. 🎉',
+    prizeDesc: 'There will be a winning gift for 1st place, plus prizes for the two runners-up! 🎉',
 
     // Login modals
     adminLoginTitle: '🔒 Admin Login',
@@ -244,12 +243,11 @@ export const TRANSLATIONS = {
     knockoutRuleDesc: 'Elige el ganador Y opcionalmente predice el marcador exacto.',
     knockoutRuleNote: 'Ambos bonos se pueden obtener en el mismo partido (máx. 5 pts por partido eliminatorio).',
     deadlineTitle: '⏰ Plazos',
-    deadlineRule1: 'Todas las predicciones deben enviarse antes de la mañana de cada jornada.',
+    deadlineRule1: 'Todas las predicciones deben enviarse antes del inicio de cada partido.',
     deadlineRule2: 'La app bloquea automáticamente cada celda al inicio del partido.',
-    deadlineRule3: 'Si olvidas enviar tu predicción, no recibirás puntos por ese partido.',
-    deadlineRule4: 'Sin excepciones.',
+    deadlineRule3: 'Los campeones elegidos se bloquearán para edición en cuanto comience el torneo... asegúrate de no perder estos valiosos puntos.',
     prizeTitle: '🏅 Premio',
-    prizeDesc: '¡El ganador se lo lleva todo! El jugador con más puntos al final del torneo gana. 🎉',
+    prizeDesc: '¡Habrá un regalo para el primer puesto, además de premios para los dos subcampeones! 🎉',
 
     // Login modals
     adminLoginTitle: '🔒 Acceso Admin',

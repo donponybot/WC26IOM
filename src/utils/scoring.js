@@ -23,7 +23,7 @@ export function scoreMatch(prediction, result, stage) {
 
 export function scoreChampion(championPick, actualChampion) {
   if (!championPick || !actualChampion) return 0;
-  return championPick === actualChampion ? 5 : 0;
+  return championPick === actualChampion ? 15 : 0;
 }
 
 export function calcPlayerTotal(playerData, results, champion) {
