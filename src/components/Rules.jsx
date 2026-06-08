@@ -12,9 +12,8 @@ export function Rules({ lang = 'en', playerCount = 0 }) {
         <div className="prize-content">
           <div className="prize-trophy">🏆</div>
           <div className="prize-text">
-            <div className="prize-label">Winner Takes All</div>
-            <div className="prize-amount">{playerCount > 0 ? `£${playerCount * 20}` : '£20 per player'}</div>
-            <div className="prize-sub">£20 entry · {playerCount > 0 ? `${playerCount} players` : 'per player'}</div>
+            <div className="prize-label">Number of Players</div>
+            <div className="prize-amount">{playerCount > 0 ? `${playerCount} ${playerCount === 1 ? 'Player' : 'Players'}` : 'No players yet'}</div>
           </div>
           <div className="prize-trophy">🏆</div>
         </div>

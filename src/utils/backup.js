@@ -1,6 +1,8 @@
-// Backup system — stores snapshots in Firestore under backups/{timestamp}
+// Backup system — stores snapshots in Firestore under pools/iom/backups/{timestamp}
 // Each backup contains the full pool state: players + results
 // Max 30 backups kept (oldest auto-deleted)
+// Scoped as a subcollection of this pool's doc so it doesn't mix with other pools/apps
+// sharing the same Firebase project.
 
 import {
   collection, doc, setDoc, getDocs,
@@ -8,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 
-const BACKUPS_COL = collection(db, 'backups');
+const BACKUPS_COL = collection(db, 'pools', 'iom', 'backups');
 const MAX_BACKUPS = 30;
 
 /**
