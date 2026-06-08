@@ -23,6 +23,19 @@ function STAGE_LABELS(lang) { return {
   [STAGE.FINAL]: '🏆 ' + t(lang,'final'),
 }; }
 
+const MONTHS = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
+
+// Match dates are stored as e.g. 'Jun 11' (no year) — append the tournament
+// year and derive the weekday for the header, e.g. 'Jun 11 (Thursday)'
+function dateHeaderLabel(dateStr) {
+  const [monAbbr, dayStr] = dateStr.split(' ');
+  const month = MONTHS[monAbbr];
+  const day = Number(dayStr);
+  if (month === undefined || !day) return dateStr;
+  const weekday = new Date(2026, month, day).toLocaleDateString('en-GB', { weekday: 'long' });
+  return `${dateStr} (${weekday})`;
+}
+
 function getTeamName(match, side, qualifiedTeams, knockoutResults) {
   const name = side === 'home' ? match.home : match.away;
   if (name) return name;
@@ -90,7 +103,7 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
 
       {Object.entries(byDate).map(([date, matches]) => (
         <div key={date} className="date-group">
-          <div className="date-header">{date}</div>
+          <div className="date-header">{dateHeaderLabel(date)}</div>
           <div className="match-list">
             {matches.map(match => {
               const result = results[match.id];
