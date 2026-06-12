@@ -163,7 +163,7 @@ export default function Predictions({
 }) {
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [stageFilter, setStageFilter] = useState(() => {
-    const stages = [STAGE.GROUP, STAGE.R32, STAGE.QF, STAGE.SF, STAGE.THIRD, STAGE.FINAL];
+    const stages = [STAGE.GROUP, STAGE.R32, STAGE.R16, STAGE.QF, STAGE.SF, STAGE.THIRD, STAGE.FINAL];
     const now = Date.now();
     for (const stage of stages) {
       const hasUpcoming = MATCHES.some(
@@ -190,9 +190,9 @@ export default function Predictions({
     await onUpdatePlayer(playerId, { passwordHash: hash });
   }
 
-  const stages = [STAGE.GROUP, STAGE.R32, STAGE.QF, STAGE.SF, STAGE.THIRD, STAGE.FINAL];
+  const stages = [STAGE.GROUP, STAGE.R32, STAGE.R16, STAGE.QF, STAGE.SF, STAGE.THIRD, STAGE.FINAL];
   const stageLabels = {
-    [STAGE.GROUP]: t(lang,'groupStage'), [STAGE.R32]: t(lang,'roundOf32'), [STAGE.QF]: t(lang,'quarterFinal'),
+    [STAGE.GROUP]: t(lang,'groupStage'), [STAGE.R32]: t(lang,'roundOf32'), [STAGE.R16]: t(lang,'roundOf16'), [STAGE.QF]: t(lang,'quarterFinal'),
     [STAGE.SF]: t(lang,'semiFinal'), [STAGE.THIRD]: t(lang,'thirdPlace'), [STAGE.FINAL]: t(lang,'final'),
   };
 
@@ -249,6 +249,11 @@ export default function Predictions({
                   return (
                     <th key={m.id} className={`match-col ${locked ? 'locked-col' : ''}`}>
                       <div className="match-th-date">{m.date}</div>
+                      <div className="match-th-time">
+                        {new Date(m.kickoff).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'America/New_York' })} ET
+                        {' · '}
+                        {new Date(m.kickoff).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })} London
+                      </div>
                       <div className="match-th-teams">{home}<br/>vs<br/>{away}</div>
                       {locked && <div className="lock-indicator">🔒</div>}
                       {m.stage !== STAGE.GROUP && <div className="ko-badge">+Score</div>}
