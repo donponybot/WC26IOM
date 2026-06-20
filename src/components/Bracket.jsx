@@ -142,6 +142,57 @@ function GroupCard({ group, teams, results, lang='en' }) {
   );
 }
 
+function GroupMatchRow({ m, results }) {
+  const result = results[m.id];
+  const finished = result?.isFinished;
+  const live = result?.isLive;
+
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: 'var(--color-background-primary)',
+      border: '0.5px solid var(--color-border-tertiary)',
+      borderRadius: 6, padding: '7px 12px',
+    }}>
+      <span style={{ fontSize: 12, color: 'var(--color-text-tertiary)', minWidth: 44, flexShrink: 0 }}>{m.date}</span>
+      <span style={{
+        flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5,
+        fontSize: 13, fontWeight: finished && result.homeScore > result.awayScore ? 600 : 400,
+        color: 'var(--color-text-primary)',
+      }}>
+        {m.home}<FlagImg team={m.home} size={16} />
+      </span>
+      <span style={{ minWidth: 52, textAlign: 'center', flexShrink: 0 }}>
+        {finished ? (
+          <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', letterSpacing: 1 }}>
+            {result.homeScore}–{result.awayScore}
+          </span>
+        ) : live ? (
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#16a34a' }}>
+            {result.homeScore ?? 0}–{result.awayScore ?? 0}
+          </span>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>vs</span>
+        )}
+      </span>
+      <span style={{
+        flex: 1, display: 'flex', alignItems: 'center', gap: 5,
+        fontSize: 13, fontWeight: finished && result.awayScore > result.homeScore ? 600 : 400,
+        color: 'var(--color-text-primary)',
+      }}>
+        <FlagImg team={m.away} size={16} />{m.away}
+      </span>
+      <span style={{
+        fontSize: 11, minWidth: 40, textAlign: 'right', flexShrink: 0,
+        color: live ? '#16a34a' : 'var(--color-text-tertiary)',
+        fontWeight: live ? 700 : 400,
+      }}>
+        {live ? (result.minute ? `LIVE ${result.minute}'` : 'LIVE') : finished ? 'FT' : new Date(m.kickoff).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}
+      </span>
+    </div>
+  );
+}
+
 export default function Bracket({ results, qualifiedTeams = {}, koResults = {}, lang = 'en' }) {
   const [view, setView] = useState(() => {
     // Default to Groups until all group stage matches have kicked off
@@ -150,6 +201,13 @@ export default function Bracket({ results, qualifiedTeams = {}, koResults = {}, 
       .filter(m => m.stage === STAGE.GROUP)
       .every(m => now >= new Date(m.kickoff).getTime());
     return groupsDone ? 'bracket' : 'groups';
+  });
+  const [selectedGroup, setSelectedGroup] = useState(() => {
+    const now = Date.now();
+    const next = MATCHES
+      .filter(m => m.stage === STAGE.GROUP && new Date(m.kickoff).getTime() > now)
+      .sort((a, b) => new Date(a.kickoff) - new Date(b.kickoff))[0];
+    return next?.group ?? 'A';
   });
 
   const r32   = MATCHES.filter(m => m.stage === STAGE.R32);
@@ -162,6 +220,11 @@ export default function Bracket({ results, qualifiedTeams = {}, koResults = {}, 
   const champion = koResults['final']?.winner || null;
 
   const groups = Object.keys(GROUP_TEAMS);
+
+  const selectedGroupMatches = useMemo(
+    () => MATCHES.filter(m => m.stage === STAGE.GROUP && m.group === selectedGroup),
+    [selectedGroup]
+  );
 
   return (
     <div style={{ paddingBottom: 40 }}>
@@ -214,10 +277,38 @@ export default function Bracket({ results, qualifiedTeams = {}, koResults = {}, 
       )}
 
       {view === 'groups' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))', gap: 12 }}>
-          {groups.map(g => (
-            <GroupCard key={g} group={g} teams={GROUP_TEAMS[g]} results={results} lang={lang} />
-          ))}
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))', gap: 12 }}>
+            {groups.map(g => (
+              <GroupCard key={g} group={g} teams={GROUP_TEAMS[g]} results={results} lang={lang} />
+            ))}
+          </div>
+
+          <div style={{ marginTop: 28, borderTop: '0.5px solid var(--color-border-tertiary)', paddingTop: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-secondary)' }}>Group matches:</span>
+              <select
+                value={selectedGroup}
+                onChange={e => setSelectedGroup(e.target.value)}
+                style={{
+                  padding: '5px 10px', borderRadius: 6,
+                  border: '0.5px solid var(--color-border-secondary)',
+                  background: 'var(--color-background-primary)',
+                  color: 'var(--color-text-primary)',
+                  fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                {groups.map(g => (
+                  <option key={g} value={g}>Group {g}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {selectedGroupMatches.map(m => (
+                <GroupMatchRow key={m.id} m={m} results={results} />
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
