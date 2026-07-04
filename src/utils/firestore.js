@@ -52,3 +52,14 @@ export async function saveOneResult(matchId, result) {
     [`results.${matchId}`]: result,
   });
 }
+
+// Merge multiple result updates at once, one field path per match — never
+// touches matches outside `updates`, so a stale local snapshot of the rest
+// of the results map can't clobber a concurrent edit (unlike saveResults).
+export async function saveResultsPatch(updates) {
+  const patch = {};
+  for (const [matchId, result] of Object.entries(updates)) {
+    patch[`results.${matchId}`] = result;
+  }
+  await updateDoc(POOL_REF, patch);
+}

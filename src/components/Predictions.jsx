@@ -255,8 +255,14 @@ export default function Predictions({
                         {new Date(m.kickoff).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/London' })} London
                       </div>
                       <div className="match-th-teams">{home}<br/>vs<br/>{away}</div>
-                      {locked && <div className="lock-indicator">🔒</div>}
-                      {m.stage !== STAGE.GROUP && <div className="ko-badge">+Score</div>}
+                      {results[m.id]?.isFinished && (
+                        <div className="match-th-score">
+                          {results[m.id].homeScore} – {results[m.id].awayScore}
+                          {results[m.id].penWinner && ' (P)'}
+                        </div>
+                      )}
+                      {locked && !results[m.id]?.isFinished && <div className="lock-indicator">🔒</div>}
+                      {m.stage !== STAGE.GROUP && !results[m.id]?.isFinished && <div className="ko-badge">+Score</div>}
                     </th>
                   );
                 })}

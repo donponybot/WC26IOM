@@ -49,8 +49,10 @@ function mapWC26Results(games, ourMatches) {
     if (!apiHome || !apiAway) continue;
 
     const ourMatch = ourMatches.find(m => {
-      if (!m.home || !m.away) return false;
-      return normalizeTeamName(m.home) === apiHome && normalizeTeamName(m.away) === apiAway;
+      const home = m.home || m._resolvedHome;
+      const away = m.away || m._resolvedAway;
+      if (!home || !away) return false;
+      return normalizeTeamName(home) === apiHome && normalizeTeamName(away) === apiAway;
     });
     if (!ourMatch) continue;
 
@@ -76,8 +78,10 @@ function mapFDResults(apiMatches, ourMatches) {
     const apiHome = normalizeTeamName(apiMatch.homeTeam?.name || '');
     const apiAway = normalizeTeamName(apiMatch.awayTeam?.name || '');
     const ourMatch = ourMatches.find(m => {
-      if (!m.home || !m.away) return false;
-      return normalizeTeamName(m.home) === apiHome && normalizeTeamName(m.away) === apiAway;
+      const home = m.home || m._resolvedHome;
+      const away = m.away || m._resolvedAway;
+      if (!home || !away) return false;
+      return normalizeTeamName(home) === apiHome && normalizeTeamName(away) === apiAway;
     });
     if (!ourMatch) continue;
 

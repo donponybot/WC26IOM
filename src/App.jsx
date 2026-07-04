@@ -10,9 +10,10 @@ import { fetchLiveMatches, mapApiResults } from './utils/api';
 import { MATCHES } from './data/matches';
 import { deriveQualifiedTeams, calcPlayerTotal, buildKnockoutResults } from './utils/scoring';
 import { hashPassword } from './utils/auth';
-import { ensurePoolExists, subscribePool, savePlayers, saveResults, saveOneResult } from './utils/firestore';
+import { ensurePoolExists, subscribePool, savePlayers, saveResults, saveOneResult, saveResultsPatch } from './utils/firestore';
 import { LangProvider, useLang } from './utils/LangContext';
 import BackupManager from './components/BackupManager';
+import MatchStatsPanel from './components/MatchStatsPanel';
 import { t } from './utils/i18n';
 
 const ADMIN_PASSWORD = process.env.REACT_APP_ADMIN_PASSWORD || 'wc2026admin';
@@ -23,7 +24,7 @@ function AppInner() {
   const { lang, setLang } = useLang();
   const tabs = [
     t(lang,'tabSchedule'), t(lang,'tabPredictions'), t(lang,'tabLeaderboard'),
-    t(lang,'tabBracket'), t(lang,'tabNews'), t(lang,'tabRules'),
+    t(lang,'tabBracket'), t(lang,'tabNews'), t(lang,'tabRules'), t(lang,'tabStats'),
   ];
 
   const [tab, setTab] = useState(0);
@@ -37,9 +38,17 @@ function AppInner() {
   const [loading, setLoading] = useState(true);
   const [fbError, setFbError] = useState(null);
   const [apiError, setApiError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const saveErrorTimer = useRef(null);
 
   const playersRef = useRef(players);
   const resultsRef = useRef(results);
+  // Set directly inside the Firestore subscription callback (not via a
+  // useEffect keyed on `results`/`loading`) so there's no window where this
+  // reads false after the ref has actually been updated — two separate
+  // effects racing against a setTimeout retry proved not to be safe in
+  // practice (a fresh load + fast user action could still slip through).
+  const hasLoadedRef = useRef(false);
   useEffect(() => { playersRef.current = players; }, [players]);
   useEffect(() => { resultsRef.current = results; }, [results]);
 
@@ -58,6 +67,10 @@ function AppInner() {
     ensurePoolExists()
       .then(() => {
         const unsub = subscribePool(({ players: p, results: r }) => {
+          // Update synchronously, in the same tick the data actually arrives —
+          // see hasLoadedRef comment above for why this can't be a useEffect.
+          resultsRef.current = r;
+          hasLoadedRef.current = true;
           setPlayers(p); setResults(r); setLoading(false);
         });
         return unsub;
@@ -73,6 +86,10 @@ function AppInner() {
 
   // Live scores polling
   const pollScores = useCallback(async () => {
+    // Firestore hasn't delivered its first snapshot yet — resultsRef.current
+    // is still {}, so every manualOverride check below would read as false
+    // and this poll would blindly clobber manual edits with API scores.
+    if (!hasLoadedRef.current) return 'loading';
     try {
       const apiMatches = await fetchLiveMatches();
       const mapped = mapApiResults(apiMatches, MATCHES);
@@ -81,18 +98,28 @@ function AppInner() {
       for (const [id, r] of Object.entries(mapped)) {
         if (!cur[id]?.manualOverride) updates[id] = r;
       }
-      if (Object.keys(updates).length > 0) await saveResults({ ...cur, ...updates });
+      if (Object.keys(updates).length > 0) await saveResultsPatch(updates);
       setApiError(null);
     } catch (e) { setApiError(e.message); }
   }, []);
 
   useEffect(() => {
-    pollScores();
-    const hasLive = Object.values(results).some(r => r.isLive);
-    clearInterval(pollRef.current);
-    pollRef.current = setInterval(pollScores, hasLive ? POLL_INTERVAL_LIVE : POLL_INTERVAL_IDLE);
-    return () => clearInterval(pollRef.current);
-  }, [pollScores, results]);
+    let cancelled = false;
+    async function tick() {
+      const status = await pollScores();
+      if (cancelled) return;
+      // Retry quickly while waiting on the initial Firestore snapshot instead
+      // of falling back to the multi-minute idle interval.
+      if (status === 'loading') {
+        pollRef.current = setTimeout(tick, 1000);
+        return;
+      }
+      const hasLive = Object.values(resultsRef.current).some(r => r.isLive);
+      pollRef.current = setTimeout(tick, hasLive ? POLL_INTERVAL_LIVE : POLL_INTERVAL_IDLE);
+    }
+    tick();
+    return () => { cancelled = true; clearTimeout(pollRef.current); };
+  }, [pollScores]);
 
   // Auth handlers
   function handleAdminLogin(pw) {
@@ -103,7 +130,7 @@ function AppInner() {
     if (player.lang) setLang(player.lang);
     setLoggedInPlayer(player); setIsAdmin(false); setShowPlayerModal(false); setTab(1);
   }
-  function handleAdminLogout() { setIsAdmin(false); }
+  function handleAdminLogout() { setIsAdmin(false); setTab(t => t === 6 ? 0 : t); }
   function handlePlayerLogout() { setLoggedInPlayer(null); }
 
   async function handleLangChange(l) {
@@ -113,29 +140,47 @@ function AppInner() {
     }
   }
 
+  function showSaveError(msg) {
+    setSaveError(msg);
+    clearTimeout(saveErrorTimer.current);
+    saveErrorTimer.current = setTimeout(() => setSaveError(null), 5000);
+  }
+
   // Player CRUD
   async function addPlayer(name, initials, password) {
     const id = `p_${Date.now()}`;
     const passwordHash = await hashPassword(password);
-    await savePlayers([...playersRef.current, { id, name, initials, passwordHash, champion: null, predictions: {}, lang: 'en' }]);
+    try {
+      await savePlayers([...playersRef.current, { id, name, initials, passwordHash, champion: null, predictions: {}, lang: 'en' }]);
+    } catch (e) { showSaveError(e.message); }
   }
   async function removePlayer(id) {
-    await savePlayers(playersRef.current.filter(p => p.id !== id));
+    try {
+      await savePlayers(playersRef.current.filter(p => p.id !== id));
+    } catch (e) { showSaveError(e.message); }
   }
   async function updatePlayer(id, updates) {
-    await savePlayers(playersRef.current.map(p => p.id === id ? { ...p, ...updates } : p));
+    try {
+      await savePlayers(playersRef.current.map(p => p.id === id ? { ...p, ...updates } : p));
+    } catch (e) { showSaveError(e.message); }
   }
   async function setPrediction(playerId, matchId, prediction) {
-    await savePlayers(playersRef.current.map(p =>
-      p.id !== playerId ? p : { ...p, predictions: { ...p.predictions, [matchId]: prediction } }
-    ));
+    try {
+      await savePlayers(playersRef.current.map(p =>
+        p.id !== playerId ? p : { ...p, predictions: { ...p.predictions, [matchId]: prediction } }
+      ));
+    } catch (e) { showSaveError('Your pick could not be saved. Please try again.'); }
   }
   async function handleResultOverride(matchId, r) {
-    await saveOneResult(matchId, { ...r, manualOverride: true });
+    try {
+      await saveOneResult(matchId, { ...r, manualOverride: true });
+    } catch (e) { showSaveError(e.message); }
   }
   async function handleRestore(restoredPlayers, restoredResults) {
-    await savePlayers(restoredPlayers);
-    await saveResults(restoredResults);
+    try {
+      await savePlayers(restoredPlayers);
+      await saveResults(restoredResults);
+    } catch (e) { showSaveError(e.message); }
   }
 
   const leaderboard = players
@@ -200,9 +245,10 @@ function AppInner() {
           </div>
         </div>
         <nav className="tabs">
-          {tabs.map((tab_label, i) => (
-            <button key={tab_label} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{tab_label}</button>
-          ))}
+          {tabs.map((tab_label, i) => {
+            if (i === 6 && !isAdmin) return null;
+            return <button key={tab_label} className={`tab ${tab === i ? 'active' : ''}`} onClick={() => setTab(i)}>{tab_label}</button>;
+          })}
         </nav>
       </header>
 
@@ -213,6 +259,7 @@ function AppInner() {
         {tab === 3 && <Bracket results={results} qualifiedTeams={qualifiedTeams} koResults={koResults} lang={lang} />}
         {tab === 4 && <News lang={lang} />}
         {tab === 5 && <Rules lang={lang} playerCount={players.length} />}
+        {tab === 6 && isAdmin && <MatchStatsPanel />}
       </main>
 
       {/* Backup manager — admin only, shown below main content on every tab */}
@@ -230,6 +277,13 @@ function AppInner() {
       {showAdminModal && <AdminModal onLogin={handleAdminLogin} onClose={() => setShowAdminModal(false)} lang={lang} />}
       {showPlayerModal && <PlayerLoginModal players={players} onLogin={handlePlayerLogin} onClose={() => setShowPlayerModal(false)} lang={lang} />}
       {showApiKeyModal && <ApiKeyModal onClose={() => setShowApiKeyModal(false)} onSave={pollScores} lang={lang} />}
+
+      {saveError && (
+        <div className="save-error-toast" role="alert">
+          ⚠️ {saveError}
+          <button className="save-error-dismiss" onClick={() => setSaveError(null)}>✕</button>
+        </div>
+      )}
     </div>
   );
 }

@@ -55,7 +55,7 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
     return 'all';
   });
   const [editingMatch, setEditingMatch] = useState(null);
-  const [editScore, setEditScore] = useState({ home: '', away: '' });
+  const [editScore, setEditScore] = useState({ home: '', away: '', penWinner: '' });
   const [editingHighlights, setEditingHighlights] = useState(null);
   const [highlightsInput, setHighlightsInput] = useState('');
   const [lineup, setLineup] = useState(null); // { team, match }
@@ -85,19 +85,23 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
   function startEdit(match) {
     const r = results[match.id];
     setEditingMatch(match.id);
-    setEditScore({ home: r?.homeScore ?? '', away: r?.awayScore ?? '' });
+    setEditScore({ home: r?.homeScore ?? '', away: r?.awayScore ?? '', penWinner: r?.penWinner ?? '' });
   }
 
   function saveEdit(match) {
     const hs = parseInt(editScore.home);
     const as_ = parseInt(editScore.away);
     if (isNaN(hs) || isNaN(as_)) return;
+    const isKO = match.stage !== STAGE.GROUP;
+    // penWinner only applies to KO matches where scores are level after FT/AET
+    const penWinner = (isKO && hs === as_ && editScore.penWinner) ? editScore.penWinner : null;
     onResultOverride(match.id, {
       homeScore: hs,
       awayScore: as_,
       isFinished: true,
       isLive: false,
       status: 'FINISHED',
+      ...(isKO && { penWinner }),
     });
     setEditingMatch(null);
   }
@@ -140,10 +144,12 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
               const result = results[match.id];
               const statusLabel = (() => {
                 if (!result) return '';
-                if (result.isFinished) return t(lang,'ft');
+                if (result.isFinished) return result.penWinner ? 'Pens' : t(lang,'ft');
                 if (result.isLive) return result.minute ? `${result.minute}'` : t(lang,'live');
                 return '';
               })();
+              const homeWins = result?.isFinished && (result.penWinner === 'home' || (!result.penWinner && result.homeScore > result.awayScore));
+              const awayWins = result?.isFinished && (result.penWinner === 'away' || (!result.penWinner && result.awayScore > result.homeScore));
               const homeTeam = getTeamName(match, 'home', qualifiedTeams, koResults);
               const awayTeam = getTeamName(match, 'away', qualifiedTeams, koResults);
               const isEditing = editingMatch === match.id;
@@ -188,7 +194,7 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
 
                   <div className="match-row">
                     <span
-                      className={`team home-team ${result?.isFinished && result.homeScore > result.awayScore ? 'winner' : ''} ${homeTeam !== 'TBD' ? 'team-clickable' : ''}`}
+                      className={`team home-team ${homeWins ? 'winner' : ''} ${homeTeam !== 'TBD' ? 'team-clickable' : ''}`}
                       onClick={homeTeam !== 'TBD' ? () => setLineup({ team: homeTeam, match }) : undefined}
                     >
                       {homeTeam !== 'TBD' ? <><FlagImg team={homeTeam} size={24} style={{marginRight:6}} />{homeTeam}</> : homeTeam}
@@ -208,6 +214,18 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
                             value={editScore.away}
                             onChange={e => setEditScore(p => ({ ...p, away: e.target.value }))}
                           />
+                          {match.stage !== STAGE.GROUP && (
+                            <select
+                              value={editScore.penWinner || ''}
+                              onChange={e => setEditScore(p => ({ ...p, penWinner: e.target.value }))}
+                              className="pen-select"
+                              title="Set if match went to penalties (only applies when scores are level)"
+                            >
+                              <option value="">No pens</option>
+                              <option value="home">{homeTeam} (pens)</option>
+                              <option value="away">{awayTeam} (pens)</option>
+                            </select>
+                          )}
                           <button className="btn-save" onClick={() => saveEdit(match)}>✓</button>
                           <button className="btn-cancel" onClick={() => setEditingMatch(null)}>✕</button>
                         </div>
@@ -237,7 +255,7 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
                     </div>
 
                     <span
-                      className={`team away-team ${result?.isFinished && result.awayScore > result.homeScore ? 'winner' : ''} ${awayTeam !== 'TBD' ? 'team-clickable' : ''}`}
+                      className={`team away-team ${awayWins ? 'winner' : ''} ${awayTeam !== 'TBD' ? 'team-clickable' : ''}`}
                       onClick={awayTeam !== 'TBD' ? () => setLineup({ team: awayTeam, match }) : undefined}
                     >
                       {awayTeam !== 'TBD' ? <><FlagImg team={awayTeam} size={24} style={{marginRight:6}} />{awayTeam}</> : awayTeam}

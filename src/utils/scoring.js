@@ -4,9 +4,10 @@ import { STAGE, GROUP_TEAMS, MATCHES } from '../data/matches';
 
 export function scoreMatch(prediction, result, stage) {
   if (!prediction || !result || result.homeScore == null || result.awayScore == null) return 0;
-  const actualPick =
-    result.homeScore > result.awayScore ? 'home' :
-    result.homeScore < result.awayScore ? 'away' : 'draw';
+  // penWinner overrides score comparison — used when match goes to penalties
+  const actualPick = result.penWinner ||
+    (result.homeScore > result.awayScore ? 'home' :
+     result.homeScore < result.awayScore ? 'away' : 'draw');
   let pts = 0;
   if (stage === STAGE.GROUP) {
     if (prediction.pick === actualPick) pts += 2;
@@ -82,7 +83,10 @@ export function deriveQualifiedTeams(results) {
     }
   }
   thirdPlace.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf);
-  thirdPlace.slice(0, 8).forEach((t, i) => { qualified[`3rd_${i + 1}`] = t.team; });
+  thirdPlace.slice(0, 8).forEach((t, i) => {
+    qualified[`3rd_${i + 1}`] = t.team;
+    qualified[`3rd_${t.group}`] = t.team;
+  });
   return qualified;
 }
 
@@ -109,12 +113,18 @@ export function buildKnockoutResults(results, qualifiedTeams) {
       const r = results?.[m.id];
       if (!r?.isFinished || r.homeScore == null || !homeTeam || !awayTeam) continue;
 
-      ko[m.id] = {
-        winner:   r.homeScore > r.awayScore ? homeTeam : awayTeam,
-        loser:    r.homeScore > r.awayScore ? awayTeam : homeTeam,
-        homeTeam,
-        awayTeam,
-      };
+      let winner, loser;
+      if (r.penWinner) {
+        winner = r.penWinner === 'home' ? homeTeam : awayTeam;
+        loser  = r.penWinner === 'home' ? awayTeam : homeTeam;
+      } else if (r.homeScore !== r.awayScore) {
+        winner = r.homeScore > r.awayScore ? homeTeam : awayTeam;
+        loser  = r.homeScore > r.awayScore ? awayTeam : homeTeam;
+      } else {
+        continue; // Level after FT/AET with no penWinner set yet
+      }
+
+      ko[m.id] = { winner, loser, homeTeam, awayTeam };
     }
   }
 
@@ -126,11 +136,8 @@ export function resolveTeam(ref, qualifiedTeams, knockoutResults) {
 
   if (/^[12][A-L]$/.test(ref)) return qualifiedTeams?.[ref] || null;
 
-  if (/^3/.test(ref)) {
-    for (let i = 1; i <= 8; i++) {
-      if (qualifiedTeams?.[`3rd_${i}`]) return qualifiedTeams[`3rd_${i}`];
-    }
-    return null;
+  if (/^3[A-L]$/.test(ref)) {
+    return qualifiedTeams?.[`3rd_${ref[1]}`] || null;
   }
 
   const winnerMatch = ref.match(/^W(.+)$/);
