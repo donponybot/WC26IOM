@@ -46,7 +46,9 @@ function PredCell({ player, match, result, canEdit, onSetPrediction, qualifiedTe
         >
           <option value="">–</option>
           <option value="home">{home}</option>
-          <option value="draw">🤝 Draw</option>
+          {/* KO matches always produce a winner (pens if level) — a draw pick can
+              never score, so only show it if this player already has one stored */}
+          {(!isKnockout || pred.pick === 'draw') && <option value="draw">🤝 Draw</option>}
           <option value="away">{away}</option>
         </select>
         {isKnockout && (

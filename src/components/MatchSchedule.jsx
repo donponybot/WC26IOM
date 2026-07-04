@@ -112,12 +112,11 @@ export default function MatchSchedule({ results, qualifiedTeams, koResults = {},
   }
 
   function saveHighlights(match) {
-    const result = results[match.id];
+    // Firestore rejects undefined field values, so clearing the URL must omit
+    // the key entirely — saveOneResult replaces the whole entry, which drops it.
+    const { highlightsUrl, ...rest } = results[match.id];
     const url = highlightsInput.trim();
-    onResultOverride(match.id, {
-      ...result,
-      highlightsUrl: url || undefined,
-    });
+    onResultOverride(match.id, url ? { ...rest, highlightsUrl: url } : rest);
     setEditingHighlights(null);
   }
 

@@ -96,7 +96,13 @@ function AppInner() {
       const cur = resultsRef.current;
       const updates = {};
       for (const [id, r] of Object.entries(mapped)) {
-        if (!cur[id]?.manualOverride) updates[id] = r;
+        const prev = cur[id];
+        if (prev?.manualOverride) continue;
+        // Skip unchanged results — otherwise every poll rewrites every matched
+        // match, churning Firestore writes and snapshot re-renders. Comparing
+        // only r's own keys also preserves any extra fields already stored.
+        if (prev && Object.keys(r).every(k => prev[k] === r[k])) continue;
+        updates[id] = r;
       }
       if (Object.keys(updates).length > 0) await saveResultsPatch(updates);
       setApiError(null);
